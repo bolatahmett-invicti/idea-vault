@@ -1,8 +1,10 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
 const CATEGORIES = ["Security", "AI/ML", "Mobile", "Tool", "PoC", "API", "Infrastructure", "Other"];
 const STATUSES = ["Idea", "In Progress", "Completed", "Live"];
-const STATUS_ICONS = { "Idea": "💡", "In Progress": "🔨", "Completed": "✅", "Live": "🚀" };
+const STATUS_ICONS = { "Idea": "\u{1f4a1}", "In Progress": "\u{1f528}", "Completed": "\u2705", "Live": "\u{1f680}" };
 const STATUS_COLORS = {
   "Idea": "#f59e0b",
   "In Progress": "#3b82f6",
@@ -11,77 +13,28 @@ const STATUS_COLORS = {
 };
 const PRIORITIES = ["High", "Medium", "Low"];
 const PRIORITY_COLORS = { "High": "#ef4444", "Medium": "#f59e0b", "Low": "#6b7280" };
-const PRIORITY_ICONS = { "High": "🔴", "Medium": "🟡", "Low": "⚪" };
+const PRIORITY_ICONS = { "High": "\u{1f534}", "Medium": "\u{1f7e1}", "Low": "\u26aa" };
 const SORT_OPTIONS = [
   { value: "date-desc", label: "Newest First" },
   { value: "date-asc", label: "Oldest First" },
   { value: "priority", label: "Priority" },
   { value: "title", label: "Title A-Z" },
 ];
-const INITIAL_IDEAS = [
-  {
-    id: 1,
-    title: "Privacy Gateway",
-    description: "A sidecar service that anonymizes NAD and Static Scanner data before sending it to the Invicti infrastructure. Built with Go + React/TS UI, following a 19-week development roadmap covering proxy layer, rule engine, and admin dashboard.",
-    category: "Security",
-    status: "In Progress",
-    priority: "High",
-    tags: ["Go", "Kubernetes", "NAD", "Privacy"],
-    date: "2026-02-10",
-    link: "",
-    notes: "Phase 1 proxy layer complete. Working on rule engine with regex & JSONPath matchers.",
-  },
-  {
-    id: 2,
-    title: "Universal Polyglot API Scanner",
-    description: "A CLI tool that performs Shadow API detection across Python, .NET, Go, Java, and JS codebases. Outputs OpenAPI 3.0 specs for seamless DAST integration. Supports framework-aware route extraction and dead endpoint detection.",
-    category: "Tool",
-    status: "Completed",
-    priority: "Medium",
-    tags: ["Python", "DAST", "OpenAPI", "Shadow API"],
-    date: "2026-01-20",
-    link: "",
-    notes: "Successfully tested against 12 internal repos. Detected 47 undocumented endpoints.",
-  },
-  {
-    id: 3,
-    title: "Jira MCP Server",
-    description: "A TypeScript MCP Server that connects Claude to Jira. Provides 9 tools including scan comparison, regression detection, and DAST quality gate automation. Enables AI-driven vulnerability triage workflows.",
-    category: "AI/ML",
-    status: "Completed",
-    priority: "Medium",
-    tags: ["TypeScript", "MCP", "Claude", "Jira"],
-    date: "2026-01-05",
-    link: "",
-    notes: "Deployed to internal team. Reduced triage time by ~40%.",
-  },
-  {
-    id: 4,
-    title: "API Contract Drift Detector",
-    description: "Monitors deployed APIs against their OpenAPI specs in CI/CD pipelines. Detects schema drift, missing endpoints, and undocumented response codes. Integrates with GitHub Actions and GitLab CI.",
-    category: "API",
-    status: "Idea",
-    priority: "High",
-    tags: ["OpenAPI", "CI/CD", "GitHub Actions", "Schema Validation"],
-    date: "2026-03-01",
-    link: "",
-    notes: "",
-  },
-  {
-    id: 5,
-    title: "Vulnerability Knowledge Graph",
-    description: "Graph database (Neo4j) mapping relationships between vulnerabilities, affected components, exploit chains, and remediation steps. Powers an AI assistant that suggests fix priorities based on attack path analysis.",
-    category: "AI/ML",
-    status: "Idea",
-    priority: "Low",
-    tags: ["Neo4j", "Graph DB", "NLP", "Vulnerability Management"],
-    date: "2026-02-28",
-    link: "",
-    notes: "Research phase. Evaluating Neo4j vs Amazon Neptune.",
-  },
-];
 
-let nextId = 6;
+// --- API helpers ---
+async function api(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || "Request failed");
+  }
+  return res.json();
+}
+
+// --- Components ---
 
 function IdeaCard({ idea, onEdit, onDelete, compact }) {
   const statusColor = STATUS_COLORS[idea.status] || "#666";
@@ -124,14 +77,14 @@ function IdeaCard({ idea, onEdit, onDelete, compact }) {
           <h3 style={{ margin: 0, fontSize: compact ? 14 : 16, fontWeight: 700, color: "#f1f0eb", fontFamily: "'Playfair Display', serif", lineHeight: 1.3 }}>{idea.title}</h3>
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          <button onClick={() => onEdit(idea)} style={iconBtn("#3b82f6")} title="Edit">✏️</button>
-          <button onClick={() => onDelete(idea.id)} style={iconBtn("#ef4444")} title="Delete">🗑</button>
+          <button onClick={() => onEdit(idea)} style={iconBtn()} title="Edit">{"\u270f\ufe0f"}</button>
+          <button onClick={() => onDelete(idea.id)} style={iconBtn()} title="Delete">{"\u{1f5d1}"}</button>
         </div>
       </div>
       <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>{idea.description}</p>
       {idea.notes && (
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", padding: "8px 12px", background: "rgba(255,255,255,0.03)", borderRadius: 8, borderLeft: `2px solid ${statusColor}44`, lineHeight: 1.5 }}>
-          📝 {idea.notes}
+          {"\u{1f4dd}"} {idea.notes}
         </div>
       )}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -143,13 +96,13 @@ function IdeaCard({ idea, onEdit, onDelete, compact }) {
         ))}
       </div>
       {idea.link && (
-        <a href={idea.link} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#6ee7b7", textDecoration: "none" }}>🔗 {idea.link}</a>
+        <a href={idea.link} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#6ee7b7", textDecoration: "none" }}>{"\u{1f517}"} {idea.link}</a>
       )}
     </div>
   );
 }
 
-function iconBtn(color) {
+function iconBtn() {
   return {
     background: "transparent",
     border: "none",
@@ -162,7 +115,7 @@ function iconBtn(color) {
   };
 }
 
-function Modal({ idea, onClose, onSave }) {
+function Modal({ idea, onClose, onSave, saving }) {
   const [form, setForm] = useState(idea || {
     title: "", description: "", category: "Other", status: "Idea", priority: "Medium", tags: [], link: "", date: new Date().toISOString().slice(0, 10), notes: "",
   });
@@ -225,7 +178,13 @@ function Modal({ idea, onClose, onSave }) {
         </div>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
           <button onClick={onClose} style={actionBtn("rgba(255,255,255,0.1)")}>Cancel</button>
-          <button onClick={() => isValid && onSave({ ...form, id: idea?.id || nextId++ })} style={{ ...actionBtn(isValid ? "#6ee7b7" : "#444", isValid ? "#111" : "#888"), cursor: isValid ? "pointer" : "not-allowed" }}>Save</button>
+          <button
+            disabled={!isValid || saving}
+            onClick={() => isValid && !saving && onSave({ ...form, id: idea?.id })}
+            style={{ ...actionBtn(isValid && !saving ? "#6ee7b7" : "#444", isValid && !saving ? "#111" : "#888"), cursor: isValid && !saving ? "pointer" : "not-allowed" }}
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
         </div>
       </div>
     </div>
@@ -303,39 +262,192 @@ function KanbanBoard({ ideas, onEdit, onDelete }) {
   );
 }
 
+// --- AI Chat Panel ---
+function ChatPanel({ open, onClose }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      api("/chat/history").then(setMessages).catch(() => {});
+    }
+  }, [open]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = input.trim();
+    setInput("");
+    setError(null);
+    setMessages(prev => [...prev, { role: "user", content: userMsg, id: Date.now() }]);
+    setLoading(true);
+
+    try {
+      const res = await api("/chat", {
+        method: "POST",
+        body: JSON.stringify({ message: userMsg }),
+      });
+      setMessages(prev => [...prev, { role: "assistant", content: res.content, id: Date.now() + 1 }]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearHistory = async () => {
+    try {
+      await api("/chat/history", { method: "DELETE" });
+      setMessages([]);
+    } catch {}
+  };
+
+  if (!open) return null;
+
+  return (
+    <div style={{
+      position: "fixed", right: 0, top: 0, bottom: 0, width: 420, background: "#12121f",
+      borderLeft: "1px solid rgba(255,255,255,0.08)", zIndex: 90, display: "flex", flexDirection: "column",
+      boxShadow: "-8px 0 32px rgba(0,0,0,0.4)",
+    }}>
+      {/* Chat Header */}
+      <div style={{ padding: "18px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#6ee7b7" }} />
+        <span style={{ fontSize: 15, fontWeight: 700, color: "#f1f0eb", flex: 1, fontFamily: "'Playfair Display', serif" }}>AI Assistant</span>
+        <button onClick={clearHistory} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 11, padding: "4px 8px" }} title="Clear chat history">
+          Clear
+        </button>
+        <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 18, padding: "0 4px" }}>
+          &times;
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 8px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {messages.length === 0 && !loading && (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "rgba(255,255,255,0.2)" }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>{"\u{1f916}"}</div>
+            <div style={{ fontSize: 14, marginBottom: 8 }}>IdeaVault AI Assistant</div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", lineHeight: 1.6 }}>
+              Ask me about your ideas, brainstorm new ones, or check if something similar already exists in the vault.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 16 }}>
+              {["What ideas do we have in progress?", "I have an idea for a security dashboard", "Which ideas overlap with each other?"].map(q => (
+                <button key={q} onClick={() => { setInput(q); }} style={{
+                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10,
+                  padding: "8px 14px", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", textAlign: "left",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {messages.map((msg, i) => (
+          <div key={msg.id || i} style={{
+            alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+            maxWidth: "85%",
+            padding: "10px 14px",
+            borderRadius: msg.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+            background: msg.role === "user" ? "#3b82f6" : "rgba(255,255,255,0.06)",
+            color: msg.role === "user" ? "#fff" : "rgba(255,255,255,0.7)",
+            fontSize: 13,
+            lineHeight: 1.6,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}>
+            {msg.content}
+          </div>
+        ))}
+        {loading && (
+          <div style={{ alignSelf: "flex-start", padding: "10px 14px", borderRadius: "14px 14px 14px 4px", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
+            <span style={{ animation: "pulse 1.5s infinite" }}>Thinking...</span>
+          </div>
+        )}
+        {error && (
+          <div style={{ padding: "8px 12px", borderRadius: 10, background: "#ef444422", color: "#ef4444", fontSize: 12, border: "1px solid #ef444444" }}>
+            {error}
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ padding: "12px 16px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 8 }}>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())}
+          placeholder="Ask about ideas..."
+          style={{ ...inputStyle, flex: 1, borderRadius: 12, padding: "10px 14px" }}
+          disabled={loading}
+        />
+        <button onClick={send} disabled={loading || !input.trim()} style={{
+          ...actionBtn(loading || !input.trim() ? "#333" : "linear-gradient(135deg, #6ee7b7, #3b82f6)", loading || !input.trim() ? "#666" : "#0d0d1a"),
+          padding: "10px 16px", borderRadius: 12, cursor: loading || !input.trim() ? "not-allowed" : "pointer",
+        }}>
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- Main App ---
 export default function App() {
-  const [ideas, setIdeas] = useState(INITIAL_IDEAS);
+  const [ideas, setIdeas] = useState([]);
+  const [allTags, setAllTags] = useState([]);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterPriority, setFilterPriority] = useState("All");
   const [sortBy, setSortBy] = useState("date-desc");
   const [modal, setModal] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [filterTag, setFilterTag] = useState("");
   const [view, setView] = useState("grid");
+  const [chatOpen, setChatOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const allTags = useMemo(() => [...new Set(ideas.flatMap(i => i.tags))].sort(), [ideas]);
+  // Fetch ideas from API
+  const fetchIdeas = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (filterCat !== "All") params.set("category", filterCat);
+      if (filterStatus !== "All") params.set("status", filterStatus);
+      if (filterPriority !== "All") params.set("priority", filterPriority);
+      if (filterTag) params.set("tag", filterTag);
+      if (sortBy) params.set("sort", sortBy);
 
-  const filtered = useMemo(() => {
-    const list = ideas.filter(i => {
-      const q = search.toLowerCase();
-      const matchSearch = !q || i.title.toLowerCase().includes(q) || i.description.toLowerCase().includes(q) || i.tags.some(t => t.toLowerCase().includes(q));
-      const matchCat = filterCat === "All" || i.category === filterCat;
-      const matchStatus = filterStatus === "All" || i.status === filterStatus;
-      const matchPriority = filterPriority === "All" || i.priority === filterPriority;
-      const matchTag = !filterTag || i.tags.includes(filterTag);
-      return matchSearch && matchCat && matchStatus && matchPriority && matchTag;
-    });
-
-    const priorityOrder = { "High": 0, "Medium": 1, "Low": 2 };
-    switch (sortBy) {
-      case "date-desc": list.sort((a, b) => b.date.localeCompare(a.date)); break;
-      case "date-asc": list.sort((a, b) => a.date.localeCompare(b.date)); break;
-      case "priority": list.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]); break;
-      case "title": list.sort((a, b) => a.title.localeCompare(b.title)); break;
+      const data = await api(`/ideas?${params}`);
+      setIdeas(data);
+    } catch (err) {
+      console.error("Failed to fetch ideas:", err);
+    } finally {
+      setLoading(false);
     }
-    return list;
-  }, [ideas, search, filterCat, filterStatus, filterPriority, filterTag, sortBy]);
+  }, [search, filterCat, filterStatus, filterPriority, filterTag, sortBy]);
+
+  const fetchTags = useCallback(async () => {
+    try {
+      const tags = await api("/ideas/tags");
+      setAllTags(tags);
+    } catch {}
+  }, []);
+
+  useEffect(() => { fetchIdeas(); }, [fetchIdeas]);
+  useEffect(() => { fetchTags(); }, [fetchTags]);
 
   const stats = useMemo(() => ({
     total: ideas.length,
@@ -346,45 +458,71 @@ export default function App() {
     highPriority: ideas.filter(i => i.priority === "High").length,
   }), [ideas]);
 
-  const handleSave = (idea) => {
-    setIdeas(prev => prev.find(i => i.id === idea.id) ? prev.map(i => i.id === idea.id ? idea : i) : [...prev, idea]);
-    setModal(null);
+  const handleSave = async (idea) => {
+    setSaving(true);
+    try {
+      if (idea.id) {
+        await api(`/ideas/${idea.id}`, { method: "PUT", body: JSON.stringify(idea) });
+      } else {
+        await api("/ideas", { method: "POST", body: JSON.stringify(idea) });
+      }
+      setModal(null);
+      fetchIdeas();
+      fetchTags();
+    } catch (err) {
+      console.error("Failed to save:", err);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = (id) => setIdeas(prev => prev.filter(i => i.id !== id));
+  const handleDelete = async (id) => {
+    try {
+      await api(`/ideas/${id}`, { method: "DELETE" });
+      fetchIdeas();
+      fetchTags();
+    } catch (err) {
+      console.error("Failed to delete:", err);
+    }
+  };
 
-  const handleExport = useCallback(() => {
-    const data = JSON.stringify(ideas, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `idea-vault-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [ideas]);
+  const handleExport = useCallback(async () => {
+    try {
+      const data = await api("/ideas");
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `idea-vault-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+    }
+  }, []);
 
   const handleImport = useCallback(() => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json";
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const imported = JSON.parse(ev.target.result);
-          if (Array.isArray(imported)) {
-            setIdeas(imported);
-            nextId = Math.max(...imported.map(i => i.id), 0) + 1;
+      const text = await file.text();
+      try {
+        const imported = JSON.parse(text);
+        if (Array.isArray(imported)) {
+          for (const idea of imported) {
+            const { id, created_at, updated_at, ...rest } = idea;
+            await api("/ideas", { method: "POST", body: JSON.stringify(rest) });
           }
-        } catch { /* ignore invalid files */ }
-      };
-      reader.readAsText(file);
+          fetchIdeas();
+          fetchTags();
+        }
+      } catch { /* ignore invalid files */ }
     };
     input.click();
-  }, []);
+  }, [fetchIdeas, fetchTags]);
 
   const clearFilters = () => {
     setSearch("");
@@ -400,6 +538,7 @@ export default function App() {
   return (
     <div style={{ minHeight: "100vh", background: "#0d0d1a", fontFamily: "'DM Sans', sans-serif", color: "#f1f0eb" }}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
 
       {/* Header */}
       <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "28px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -410,11 +549,17 @@ export default function App() {
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.35)" }}>Your central hub for AI-powered project ideas</p>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <button onClick={() => setChatOpen(!chatOpen)} style={{
+            ...actionBtn(chatOpen ? "#6ee7b7" : "rgba(255,255,255,0.08)", chatOpen ? "#111" : "#fff"),
+            padding: "10px 16px", borderRadius: 12, fontSize: 12, display: "flex", alignItems: "center", gap: 6,
+          }}>
+            {"\u{1f916}"} AI Chat
+          </button>
           <button onClick={handleImport} style={{ ...actionBtn("rgba(255,255,255,0.08)"), padding: "10px 16px", borderRadius: 12, fontSize: 12 }} title="Import JSON">
-            📥 Import
+            Import
           </button>
           <button onClick={handleExport} style={{ ...actionBtn("rgba(255,255,255,0.08)"), padding: "10px 16px", borderRadius: 12, fontSize: 12 }} title="Export JSON">
-            📤 Export
+            Export
           </button>
           <button onClick={() => setModal("new")} style={{ ...actionBtn("linear-gradient(135deg, #6ee7b7, #3b82f6)", "#0d0d1a"), display: "flex", alignItems: "center", gap: 6, fontWeight: 700, padding: "12px 22px", borderRadius: 12 }}>
             + New Idea
@@ -448,7 +593,7 @@ export default function App() {
       <div style={{ padding: "0 32px 12px", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <input
           value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="🔍  Search ideas..."
+          placeholder="Search ideas..."
           style={{ ...inputStyle, width: 220, padding: "10px 16px" }}
         />
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
@@ -466,13 +611,12 @@ export default function App() {
         <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
           {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        {/* View Toggle */}
         <div style={{ display: "flex", marginLeft: "auto", gap: 4, background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: 3 }}>
           <button onClick={() => setView("grid")} style={{ background: view === "grid" ? "rgba(255,255,255,0.12)" : "transparent", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: view === "grid" ? "#f1f0eb" : "rgba(255,255,255,0.35)", fontSize: 13, fontWeight: 600, transition: "all 0.15s" }}>
-            ▦ Grid
+            Grid
           </button>
           <button onClick={() => setView("kanban")} style={{ background: view === "kanban" ? "rgba(255,255,255,0.12)" : "transparent", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", color: view === "kanban" ? "#f1f0eb" : "rgba(255,255,255,0.35)", fontSize: 13, fontWeight: 600, transition: "all 0.15s" }}>
-            ☰ Kanban
+            Kanban
           </button>
         </div>
       </div>
@@ -502,17 +646,21 @@ export default function App() {
       </div>
 
       {/* Content */}
-      {view === "kanban" ? (
-        <KanbanBoard ideas={filtered} onEdit={i => setModal(i)} onDelete={handleDelete} />
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "80px 20px", color: "rgba(255,255,255,0.3)" }}>
+          <div style={{ fontSize: 14 }}>Loading ideas...</div>
+        </div>
+      ) : view === "kanban" ? (
+        <KanbanBoard ideas={ideas} onEdit={i => setModal(i)} onDelete={handleDelete} />
       ) : (
         <div style={{ padding: "0 32px 40px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
-          {filtered.length === 0 ? (
+          {ideas.length === 0 ? (
             <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px 20px", color: "rgba(255,255,255,0.25)" }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>{"\u{1f50d}"}</div>
               <div style={{ fontSize: 14 }}>No ideas found</div>
               {hasActiveFilters && <div style={{ fontSize: 12, marginTop: 8, color: "rgba(255,255,255,0.2)" }}>Try adjusting your filters</div>}
             </div>
-          ) : filtered.map(idea => (
+          ) : ideas.map(idea => (
             <IdeaCard key={idea.id} idea={idea} onEdit={i => setModal(i)} onDelete={handleDelete} />
           ))}
         </div>
@@ -520,13 +668,16 @@ export default function App() {
 
       {/* Footer */}
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "16px 32px", textAlign: "center", color: "rgba(255,255,255,0.2)", fontSize: 12 }}>
-        Showing {filtered.length} of {ideas.length} ideas &middot; Idea Vault v2.0
+        Showing {ideas.length} ideas &middot; Idea Vault v3.0
       </div>
 
       {/* Modal */}
       {modal !== null && (
-        <Modal idea={modal === "new" ? null : modal} onClose={() => setModal(null)} onSave={handleSave} />
+        <Modal idea={modal === "new" ? null : modal} onClose={() => setModal(null)} onSave={handleSave} saving={saving} />
       )}
+
+      {/* Chat Panel */}
+      <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
   );
 }
